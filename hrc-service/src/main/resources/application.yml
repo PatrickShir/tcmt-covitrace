@@ -1,0 +1,22 @@
+#Allows messages to be sent e.g. from ResponseStatusException
+server:
+  port: 8081
+  error:
+    include-message: always
+
+spring:
+  banner:
+    image:
+      location: classpath:/hrc-service/src/main/resources/banner.txt
+
+  jpa:
+    open-in-view: true
+
+    hibernate:
+      ddl-auto: update
+      use-new-id-generator-mappings:
+
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true

@@ -1,0 +1,2 @@
+rootProject.name = 'covitrace'
+include 'hrc-service', 'notification-service', 'user-service'

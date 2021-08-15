@@ -1,0 +1,105 @@
+version: '3'
+
+services:
+  # zookeeper server
+  zookeeper:
+    image: 'wurstmeister/zookeeper'
+    ports:
+      - "2181:2181"
+
+  # kafka configuration
+  kafka:
+    image: 'wurstmeister/kafka'
+    ports:
+    - 9092:9092
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPIC: "infection-contact:1:0"
+    depends_on:
+      - zookeeper
+
+  #postgres configuration
+  covi-postgres:
+    image: "postgres:13.0-alpine"
+    container_name: covi-postgres
+    volumes:
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_MULTIPLE_DATABASES=${ALL_DATABASES}
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  pgadmin:
+    image: "dpage/pgadmin4:latest"
+    container_name: pgadmin4
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+    depends_on:
+      - covi-postgres
+    ports:
+      - "5555:80"
+    restart: unless-stopped
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${USER_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - KAFKA_BOOTSTRAP_SERVER=${KAFKA_BOOTSTRAP_SERVER}
+      - KAFA_GROUP_ID=${KAFKA_GROUP_ID}
+    depends_on:
+      - covi-postgres
+      - kafka
+    ports:
+    - "8080:8080"
+    restart: on-failure
+
+  hrc-service:
+    build: ./hrc-service
+    container_name: hrc-service
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${HRC_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - KAFKA_BOOTSTRAP_SERVER=${KAFKA_BOOTSTRAP_SERVER}
+      - KAFA_GROUP_ID=${KAFKA_GROUP_ID}
+    depends_on:
+      - covi-postgres
+      - kafka
+    ports:
+      - "8081:8081"
+    restart: on-failure
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${NOTIFICATION_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - KAFKA_BOOTSTRAP_SERVER=${KAFKA_BOOTSTRAP_SERVER}
+      - KAFA_GROUP_ID=${KAFKA_GROUP_ID}
+    depends_on:
+      - covi-postgres
+      - kafka
+    ports:
+      - "8082:8082"
+    restart: on-failure
+
+volumes:
+  pgadmin-data:
+  postgres-data:
